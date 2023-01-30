@@ -1,10 +1,9 @@
-const { Server } = require("net");
+const Server = require("net");
 
-const server = new Server();
+const server = Server.createServer();
 
 function error(err) {
   console.error(err);
-  //process.exit(1);
 }
 
 //Nos servira para guardar las conexiones al server (nombre y usario)
@@ -16,48 +15,63 @@ function start(port) {
   server.on("connection", (socket) => {
     //Se puso porque como tal en el socket mandamos bits y esos los tenemos que poner en utf-8
     socket.setEncoding("utf-8");
-
     const remoteSocket = `${socket.remoteAddress}:${socket.remotePort}`;
-
     console.log(`New Connection from ${remoteSocket}`);
-
     //Este va a ser cuando tenga que leerse algo de información del socket
     socket.on("data", (data) => {
+      console.log(data);
       if (!connections.has(socket)) {
-        if(nombres.includes(data)){
-            socket.write("ESTE NOMBRE YA ESTA EN USO")
-            error("Verifica la informacion que mandas");
-        }else{
-            nombres.push(data)
-            connections.set(socket, data);
+        if (nombres.includes(data)) {
+          socket.write("ESTE NOMBRE YA ESTA EN USO");
+          connections.delete(socket)
+          socket.write("END")
+        } else {
+          nombres.push(data);
+          connections.set(socket, data);
+          let mensaje = data + " ha entrado al chat"
+          send(mensaje, socket)
         }
       } else if (data == "END") {
-        socket.end();
-        connections.delete(socket)
+        eliminar(socket)
       } else {
         const full = `${connections.get(socket)} -> ${data}`;
-        //socket.write(full);
-        send(full, socket)
+        send(full, socket);
       }
+
+      socket.on("error", (err) => {
+        console.log("Algo sucedio");
+        error(err.message);
+      });
+
+      socket.on("close", () => {
+        console.log("Comunicacion finalizada");
+      });
     });
   });
 
-  server.listen({host:"127.0.0.1", port: port }, () => {
+  server.listen({ host: "127.0.0.1", port: port }, () => {
     console.log(`Server is RUNNING IN PORT ${port}`);
-  });
-
-  server.on("error", (err) => {
-    error(err.message);
   });
 }
 
+function eliminar(socket) {
+  let usuario = connections.get(socket);
+  let index = nombres.findIndex((n) => {
+    return n === usuario;
+  });
+  nombres[index] = "";
+  let mensaje = usuario + " ha abandonado el chat"
+  send(mensaje, socket)
+  connections.delete(socket);
+}
+
 function send(data, origin) {
-    for(const socket of connections.keys()){
-        //console.log(connections.keys())
-        if(socket != origin){
-            socket.write(data)
-        }
+  for (const socket of connections.keys()) {
+    console.log("entro")
+    if (socket != origin) {
+      socket.write(data);
     }
+  }
 }
 
 const main = () => {

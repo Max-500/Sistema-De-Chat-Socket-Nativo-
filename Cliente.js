@@ -12,7 +12,12 @@ function connect(host, port) {
   socket.on("connect", () => {
 
     readline.question("Elige tu nombre de usuario: ", (username) =>{
+      if(username.length === 0){
+        socket.end()
+        process.exit(1)
+      }else{
         socket.write(username)
+      }
     })
 
     //Nos sirve para leer todo lo que ingrese por el terminal
@@ -20,20 +25,24 @@ function connect(host, port) {
       socket.write(line);
       if (line == "END") {
         socket.end();
+        process.exit(0)
       }
     });
 
-    socket.on("data", (data) => {
-      console.log(data);
-    });
   });
 
-  socket.on("close", () => {
-    process.exit(0);
+  socket.on("data", (data) => {
+    if(data === "END"){
+      process.exit(1)
+    }else{
+      console.log(data)
+    }
   });
 
   socket.on("error", (error) => {
-    error(error.message);
+    console.log(error.message)
+    console.log("se ha cerrado el servidor")
+    process.exit(0)
   });
 }
 
